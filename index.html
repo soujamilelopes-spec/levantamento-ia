@@ -6,16 +6,18 @@
 <title>Levantamento de IAs sem funcionamento · Servis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <style>
 :root{
-  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#16241D; --muted:#5E6E66; --line:#DCE3DF;
-  --brand:#0B6B3A; --brand-ink:#FFFFFF; --brand-soft:#E3F1E9;
-  --warn:#9A5B00; --warn-soft:#FBF0DC; --bad:#A3271F; --bad-soft:#FBE6E4;
-  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  /* Paleta Servis (serviseletronica.com.br + marca) */
+  --bg:#F4F5FA; --surface:#FFFFFF; --ink:#1F2433; --muted:#666666; --line:#DCDFEA;
+  --brand:#040DCA; --brand-2:#043FC8; --brand-ink:#FFFFFF; --brand-soft:#E6E8FB;
+  --accent:#F08000; --accent-ink:#FFFFFF; --navy:#003060;
+  --warn:#B35F00; --warn-soft:#FFF0DC; --bad:#B3261E; --bad-soft:#FCE8E6;
+  --font:"Montserrat",Helvetica,Arial,sans-serif;
   color-scheme:light;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
@@ -23,33 +25,47 @@
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --bg:#101614; --surface:#18201C; --ink:#E6EEEA; --muted:#97A7A0; --line:#2A3631;
-    --brand:#3FB27A; --brand-ink:#08130D; --brand-soft:#1B3428;
-    --warn:#E3A64A; --warn-soft:#33270F; --bad:#EE7A70; --bad-soft:#3A1916;
+    --bg:#0D1024; --surface:#161A33; --ink:#E9EBF5; --muted:#A3A8BE; --line:#2A2F4D;
+    --brand:#5C66FF; --brand-2:#7C85FF; --brand-ink:#FFFFFF; --brand-soft:#1E2350;
+    --accent:#FF9A2E; --accent-ink:#1A0E00;
+    --warn:#FFB257; --warn-soft:#3A2508; --bad:#F2867E; --bad-soft:#3D1715;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#101614; --surface:#18201C; --ink:#E6EEEA; --muted:#97A7A0; --line:#2A3631;
-  --brand:#3FB27A; --brand-ink:#08130D; --brand-soft:#1B3428;
-  --warn:#E3A64A; --warn-soft:#33270F; --bad:#EE7A70; --bad-soft:#3A1916;
+  --bg:#0D1024; --surface:#161A33; --ink:#E9EBF5; --muted:#A3A8BE; --line:#2A2F4D;
+  --brand:#5C66FF; --brand-2:#7C85FF; --brand-ink:#FFFFFF; --brand-soft:#1E2350;
+  --accent:#FF9A2E; --accent-ink:#1A0E00;
+  --warn:#FFB257; --warn-soft:#3A2508; --bad:#F2867E; --bad-soft:#3D1715;
   color-scheme:dark;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1040px;margin:0 auto;padding:32px 20px 64px}
-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:3px solid var(--brand);margin-bottom:28px}
-.mark{display:flex;align-items:center;gap:12px}
-.mark svg{flex:none}
-h1{font-size:22px;line-height:1.2;margin:0;font-weight:700;letter-spacing:-.01em}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 64px}
+.topbar{background:#FFFFFF;border-bottom:4px solid var(--brand);box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.topbar header{max-width:1040px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.mark{display:flex;align-items:center;gap:18px}
+.mark img{height:52px;width:auto;flex:none;display:block}
+.logo-txt{font-weight:800;font-size:28px;color:#F08000;letter-spacing:.02em;text-shadow:0 2px 0 #003060}
+.mark .divider{width:1px;align-self:stretch;background:#DCDFEA}
+.topbar h1{color:#1F2433}
+.topbar .sub{color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.topbar .sync{color:#666666}
+.topbar .btn.ghost{color:#040DCA}
+.band{background:linear-gradient(90deg,var(--brand) 0%,var(--brand-2) 100%);height:6px}
+h1{font-size:20px;line-height:1.2;margin:0;font-weight:700;letter-spacing:-.01em}
+h2,h3,h4,.tab,.btn,th{font-family:var(--font)}
 .sub{color:var(--muted);font-size:13px;margin-top:2px}
 .sync{font-size:12px;color:var(--muted)}
 button{font:inherit;cursor:pointer}
 .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;border-radius:6px;font-weight:600;font-size:14px}
 .btn:hover{border-color:var(--brand)}
-.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);text-transform:uppercase;letter-spacing:.04em;font-size:13px}
+.btn.primary:hover{background:var(--brand-2);border-color:var(--brand-2)}
+#openRep{border-color:var(--accent);color:var(--accent)}
+#openRep:hover{background:var(--accent);color:var(--accent-ink)}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:6px 10px}
 .btn.ghost:hover{color:var(--ink)}
 .btn:focus-visible,input:focus-visible,select:focus-visible,.seg button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
@@ -90,7 +106,7 @@ tr.editing td{background:var(--brand-soft)}
 .pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .pill.never{background:var(--bad-soft);color:var(--bad)}
 .pill.old{background:var(--warn-soft);color:var(--warn)}
-.pill.recent{background:var(--brand-soft);color:var(--ink)}
+.pill.recent{background:var(--brand-soft);color:var(--brand)}
 .empty{padding:40px 20px;text-align:center;color:var(--muted)}
 .del{color:var(--muted)}
 .del:hover{color:var(--bad)}
@@ -115,7 +131,8 @@ dialog::backdrop{background:rgba(10,20,15,.5)}
 .rep tbody tr:hover td{background:none}
 .hright{display:flex;align-items:center;gap:8px}
 .login{max-width:360px;margin:48px auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:24px;display:grid;gap:6px}
-.login h2{margin:0;font-size:18px}
+.login h2{margin:0;font-size:18px;color:var(--brand)}
+.login{border-top:4px solid var(--accent)}
 .login .sub{margin-bottom:10px}
 .login input{margin-bottom:8px}
 .login .btn{margin-top:4px}
@@ -137,17 +154,21 @@ input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--b
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="topbar">
   <header>
     <div class="mark">
-      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="7" fill="var(--brand)"/><path d="M10 21.5c1.4 1.6 3.6 2.5 6.4 2.5 3.5 0 5.6-1.6 5.6-4 0-2.3-1.7-3.3-5-4l-1.6-.3c-1.6-.3-2.3-.8-2.3-1.7 0-1 1-1.7 2.7-1.7 1.7 0 3 .6 4 1.6l2-2.3c-1.4-1.5-3.4-2.3-6-2.3-3.4 0-5.6 1.7-5.6 4.1 0 2.3 1.6 3.4 4.8 4l1.6.3c1.7.3 2.4.8 2.4 1.8 0 1.1-1.1 1.8-3 1.8-2 0-3.4-.7-4.4-1.9z" fill="var(--brand-ink)"/></svg>
+      <img src="https://serviseletronica.com.br/wp-content/uploads/2023/05/marca-servis-tecnologia-em-seguranca.png" alt="Servis Tecnologia em Segurança" width="103" height="52" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-txt',textContent:'SERVIS'}))">
+      <span class="divider" aria-hidden="true"></span>
       <div>
         <h1>Levantamento de IAs sem funcionamento</h1>
-        <div class="sub">Servis Tecnologia em Segurança</div>
+        <div class="sub">Backoffice · Servis Tecnologia em Segurança</div>
       </div>
     </div>
     <div class="hright"><span class="sync" id="sync">Carregando…</span><button type="button" class="btn ghost" id="logout">Sair</button></div>
   </header>
+</div>
+<div class="band" aria-hidden="true"></div>
+<div class="wrap">
 
   <section id="login" class="login" hidden aria-label="Entrar">
     <h2>Entrar</h2>
@@ -528,9 +549,9 @@ input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--b
     const p = repPlat, r = repData(p);
     const doc = new jspdf.jsPDF({unit:'mm', format:'a4'});
     const W = 210, M = 18, CW = W - 2*M; let y = 0;
-    const green = [11,107,58], ink = [22,36,29], muted = [94,110,102], line = [220,227,223];
+    const green = [4,13,202], orange = [240,128,0], ink = [22,36,29], muted = [94,110,102], line = [220,227,223];
     const header = () => {
-      doc.setFillColor(...green); doc.rect(0,0,W,4,'F');
+      doc.setFillColor(...green); doc.rect(0,0,W,4,'F'); doc.setFillColor(...orange); doc.rect(0,4,W,1.2,'F');
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
       doc.text('Servis Tecnologia em Segurança', M, 296 - 6);
       doc.text(`Página ${doc.getNumberOfPages()}`, W - M, 296 - 6, {align:'right'});
