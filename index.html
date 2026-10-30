@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Levantamento de IAs sem funcionamento · Servis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#16241D; --muted:#5E6E66; --line:#DCE3DF;
+  --brand:#0B6B3A; --brand-ink:#FFFFFF; --brand-soft:#E3F1E9;
+  --warn:#9A5B00; --warn-soft:#FBF0DC; --bad:#A3271F; --bad-soft:#FBE6E4;
+  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101614; --surface:#18201C; --ink:#E6EEEA; --muted:#97A7A0; --line:#2A3631;
+    --brand:#3FB27A; --brand-ink:#08130D; --brand-soft:#1B3428;
+    --warn:#E3A64A; --warn-soft:#33270F; --bad:#EE7A70; --bad-soft:#3A1916;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101614; --surface:#18201C; --ink:#E6EEEA; --muted:#97A7A0; --line:#2A3631;
+  --brand:#3FB27A; --brand-ink:#08130D; --brand-soft:#1B3428;
+  --warn:#E3A64A; --warn-soft:#33270F; --bad:#EE7A70; --bad-soft:#3A1916;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:32px 20px 64px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:3px solid var(--brand);margin-bottom:28px}
+.mark{display:flex;align-items:center;gap:12px}
+.mark svg{flex:none}
+h1{font-size:22px;line-height:1.2;margin:0;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+.sync{font-size:12px;color:var(--muted)}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;border-radius:6px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:6px 10px}
+.btn.ghost:hover{color:var(--ink)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,.seg button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+.form{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;display:grid;grid-template-columns:2fr auto 1.3fr;gap:16px 20px;align-items:end}
+.field label,.flabel{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+input[type=text],input[type=date],textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
+input[type=date]:disabled{opacity:.4}
+textarea{resize:vertical;min-height:40px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg)}
+.seg button{border:0;background:transparent;color:var(--ink);padding:9px 14px;font-weight:600;font-size:14px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+.datebox{display:flex;gap:12px;align-items:center}
+.check{display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap;cursor:pointer}
+.check input{accent-color:var(--brand);width:16px;height:16px}
+.form .obs{grid-column:1 / 3}
+.form .actions{display:flex;gap:8px;justify-content:flex-end}
+.err{grid-column:1/-1;color:var(--bad);font-size:13px;margin:-4px 0 0;min-height:0}
+
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:32px 0 12px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:6px;font-weight:600;font-size:14px}
+.tab[aria-selected="true"]{background:var(--brand-soft);color:var(--ink)}
+.tab .n{font-weight:500;margin-left:4px;opacity:.8}
+
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--bg)}
+tr.editing td{background:var(--brand-soft)}
+.cli{font-weight:600}
+.obs-t{color:var(--muted);font-size:13px;margin-top:2px}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.never{background:var(--bad-soft);color:var(--bad)}
+.pill.old{background:var(--warn-soft);color:var(--warn)}
+.pill.recent{background:var(--brand-soft);color:var(--ink)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.del{color:var(--muted)}
+.del:hover{color:var(--bad)}
+
+/* relatório */
+dialog{border:0;padding:0;border-radius:10px;max-width:860px;width:calc(100% - 24px);background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(10,20,15,.5)}
+.dhead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dhead h2{margin:0;font-size:17px}
+.dbody{padding:24px 28px;max-height:70vh;overflow:auto}
+.dfoot{display:flex;gap:8px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+.rep h3{font-size:20px;margin:0 0 4px}
+.rep .meta{color:var(--muted);font-size:13px;margin-bottom:20px}
+.rep p{margin:0 0 14px;max-width:72ch}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:18px 0 24px}
+.stats div{background:var(--surface);padding:12px 14px}
+.stats b{display:block;font-size:22px;line-height:1.1}
+.stats span{font-size:12px;color:var(--muted)}
+.rep h4{font-size:14px;margin:22px 0 8px}
+.rep table{font-size:13px;border:1px solid var(--line)}
+.rep tbody tr{cursor:default}
+.rep tbody tr:hover td{background:none}
+.hright{display:flex;align-items:center;gap:8px}
+.login{max-width:360px;margin:48px auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:24px;display:grid;gap:6px}
+.login h2{margin:0;font-size:18px}
+.login .sub{margin-bottom:10px}
+.login input{margin-bottom:8px}
+.login .btn{margin-top:4px}
+input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+
+@media (max-width:760px){
+  .form{grid-template-columns:1fr}
+  .form .obs{grid-column:auto}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .datebox{flex-wrap:wrap}
+  .col-obs{display:none}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="7" fill="var(--brand)"/><path d="M10 21.5c1.4 1.6 3.6 2.5 6.4 2.5 3.5 0 5.6-1.6 5.6-4 0-2.3-1.7-3.3-5-4l-1.6-.3c-1.6-.3-2.3-.8-2.3-1.7 0-1 1-1.7 2.7-1.7 1.7 0 3 .6 4 1.6l2-2.3c-1.4-1.5-3.4-2.3-6-2.3-3.4 0-5.6 1.7-5.6 4.1 0 2.3 1.6 3.4 4.8 4l1.6.3c1.7.3 2.4.8 2.4 1.8 0 1.1-1.1 1.8-3 1.8-2 0-3.4-.7-4.4-1.9z" fill="var(--brand-ink)"/></svg>
+      <div>
+        <h1>Levantamento de IAs sem funcionamento</h1>
+        <div class="sub">Servis Tecnologia em Segurança</div>
+      </div>
+    </div>
+    <div class="hright"><span class="sync" id="sync">Carregando…</span><button type="button" class="btn ghost" id="logout">Sair</button></div>
+  </header>
+
+  <section id="login" class="login" hidden aria-label="Entrar">
+    <h2>Entrar</h2>
+    <p class="sub">Use o e-mail e a senha cadastrados pelo administrador.</p>
+    <label class="flabel" for="lemail">E-mail</label>
+    <input type="text" id="lemail" autocomplete="username" inputmode="email">
+    <label class="flabel" for="lpass">Senha</label>
+    <input type="password" id="lpass" autocomplete="current-password">
+    <p class="err" id="lerr" role="alert"></p>
+    <button type="button" class="btn primary" id="loginBtn">Entrar</button>
+  </section>
+
+  <div id="app" hidden>
+
+  <section class="form" aria-label="Registro">
+    <div class="field">
+      <label for="cliente">Cliente</label>
+      <input type="text" id="cliente" autocomplete="off" placeholder="Ex.: 1398 – Natus Lumine Maternidade">
+    </div>
+    <div>
+      <span class="flabel" id="platLabel">Plataforma</span>
+      <div class="seg" role="group" aria-labelledby="platLabel" id="plat">
+        <button type="button" data-v="Segware" aria-pressed="true">Segware</button>
+        <button type="button" data-v="Monuv" aria-pressed="false">Monuv</button>
+        <button type="button" data-v="Octos" aria-pressed="false">Octos</button>
+      </div>
+    </div>
+    <div>
+      <label class="flabel" for="ultima">Última comunicação</label>
+      <div class="datebox">
+        <input type="date" id="ultima">
+        <label class="check"><input type="checkbox" id="nunca"> Nunca comunicou</label>
+      </div>
+    </div>
+    <div class="field obs">
+      <label for="obs">Observação <span style="font-weight:400">(opcional)</span></label>
+      <input type="text" id="obs" autocomplete="off" placeholder="Ex.: câmera online, sem eventos analíticos desde a troca do DVR">
+    </div>
+    <div class="actions">
+      <button type="button" class="btn ghost" id="cancel" hidden>Cancelar</button>
+      <button type="button" class="btn primary" id="save">Adicionar</button>
+    </div>
+    <p class="err" id="err" role="alert"></p>
+  </section>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <button type="button" class="btn" id="openRep">Gerar relatório</button>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Cliente</th><th>Plataforma</th><th>Última comunicação</th><th>Situação</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  </div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dhead">
+    <h2 id="dlgTitle">Relatório para a plataforma</h2>
+    <div class="seg" role="group" aria-label="Plataforma do relatório" id="repPlat">
+      <button type="button" data-v="Segware" aria-pressed="true">Segware</button>
+      <button type="button" data-v="Monuv" aria-pressed="false">Monuv</button>
+      <button type="button" data-v="Octos" aria-pressed="false">Octos</button>
+    </div>
+  </div>
+  <div class="dbody"><div class="rep" id="rep"></div></div>
+  <div class="dfoot">
+    <button type="button" class="btn ghost" id="closeRep">Fechar</button>
+    <button type="button" class="btn" id="dlCsv">Baixar CSV</button>
+    <button type="button" class="btn primary" id="dlPdf">Baixar PDF</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const PLATS = ['Segware','Monuv','Octos'];
+  let items = [];           // {id, cliente, plataforma, nunca, ultima, obs, atualizadoEm}
+  let readOnly = false;
+  let editingId = null, filter = 'Todas', plat = 'Segware', repPlat = 'Segware';
+
+  /* ---------- util ---------- */
+  const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+  const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+  const fmt = s => s ? s.split('-').reverse().join('/') : '';
+  const daysSince = s => Math.round((today() - parseISO(s)) / 86400000);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2400); };
+  function situacao(it){
+    if (it.nunca) return {txt:'Nunca comunicou', cls:'never', ord: 1e9};
+    const d = daysSince(it.ultima);
+    if (d <= 0) return {txt:'Comunicou hoje', cls:'recent', ord:0};
+    return {txt: d === 1 ? 'Sem comunicação há 1 dia' : `Sem comunicação há ${d} dias`, cls: d > 7 ? 'old' : 'recent', ord:d};
+  }
+  const sortItems = arr => arr.slice().sort((a,b) => situacao(b).ord - situacao(a).ord || a.cliente.localeCompare(b.cliente,'pt-BR'));
+
+  /* ---------- persistência (Supabase) ---------- */
+  const cfg = window.SERVIS_CONFIG || {};
+  const sb = (window.supabase && cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes('SEU-PROJETO'))
+    ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
+  const fromRow = r => ({id: r.id, cliente: r.cliente, plataforma: r.plataforma, nunca: r.nunca, ultima: r.ultima || '', obs: r.obs || '', criadoPor: r.criado_por || ''});
+  const toRow = d => ({cliente: d.cliente, plataforma: d.plataforma, nunca: d.nunca, ultima: d.nunca ? null : d.ultima, obs: d.obs || null});
+
+  async function load(){
+    const {data, error} = await sb.from('ias_levantamento').select('*').order('criado_em');
+    if (error){ $('#sync').textContent = 'Erro ao carregar dados: ' + error.message; return; }
+    items = data.map(fromRow);
+    $('#sync').textContent = 'Conectado como ' + (session?.user?.email || '');
+    render();
+  }
+  let session = null, channel = null;
+  async function initRuntime(){
+    if (!sb){ $('#sync').textContent = 'Configure SUPABASE_URL e SUPABASE_ANON_KEY no arquivo config.js'; $('#logout').hidden = true; return; }
+    const {data} = await sb.auth.getSession();
+    session = data.session;
+    sb.auth.onAuthStateChange((_e, s) => { session = s; s ? start() : showLogin(true); });
+    session ? start() : showLogin(true);
+  }
+  function start(){
+    $('#login').hidden = true; $('#app').hidden = false;
+    load();
+    if (!channel){
+      channel = sb.channel('ias').on('postgres_changes', {event:'*', schema:'public', table:'ias_levantamento'}, () => load()).subscribe();
+    }
+  }
+  function showLogin(on){
+    $('#app').hidden = on; $('#login').hidden = !on;
+    if (channel){ sb.removeChannel(channel); channel = null; }
+  }
+  $('#loginBtn').addEventListener('click', async () => {
+    const email = $('#lemail').value.trim(), password = $('#lpass').value;
+    $('#lerr').textContent = '';
+    if (!email || !password){ $('#lerr').textContent = 'Informe e-mail e senha.'; return; }
+    $('#loginBtn').disabled = true;
+    const {error} = await sb.auth.signInWithPassword({email, password});
+    $('#loginBtn').disabled = false;
+    if (error) $('#lerr').textContent = 'E-mail ou senha incorretos.';
+  });
+  $('#lpass').addEventListener('keydown', e => { if (e.key === 'Enter') $('#loginBtn').click(); });
+  $('#logout').addEventListener('click', () => sb.auth.signOut());
+
+  async function persist(data, id){
+    const row = toRow(data);
+    const q = id ? sb.from('ias_levantamento').update(row).eq('id', id)
+                 : sb.from('ias_levantamento').insert({...row, criado_por: session?.user?.email || null});
+    const {error} = await q;
+    if (error){ showErr('Não foi possível salvar: ' + error.message); return false; }
+    await load(); return true;
+  }
+  async function remove(id){
+    const {error} = await sb.from('ias_levantamento').delete().eq('id', id);
+    if (error){ showErr('Não foi possível excluir: ' + error.message); return; }
+    load();
+  }
+
+  /* ---------- formulário ---------- */
+  function setSeg(el, v){ el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v ? 'true' : 'false')); }
+  $('#plat').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; plat = b.dataset.v; setSeg($('#plat'), plat); });
+  $('#nunca').addEventListener('change', e => { $('#ultima').disabled = e.target.checked; if (e.target.checked) $('#ultima').value = ''; });
+  const showErr = m => { $('#err').textContent = m; };
+
+  function resetForm(){
+    editingId = null;
+    $('#cliente').value = ''; $('#obs').value = ''; $('#ultima').value = ''; $('#ultima').disabled = false; $('#nunca').checked = false;
+    $('#save').textContent = 'Adicionar'; $('#cancel').hidden = true; showErr('');
+    render();
+  }
+  function loadForm(it){
+    editingId = it.id;
+    $('#cliente').value = it.cliente; $('#obs').value = it.obs || '';
+    plat = it.plataforma; setSeg($('#plat'), plat);
+    $('#nunca').checked = !!it.nunca; $('#ultima').disabled = !!it.nunca; $('#ultima').value = it.nunca ? '' : (it.ultima || '');
+    $('#save').textContent = 'Salvar alterações'; $('#cancel').hidden = false; showErr('');
+    render(); $('#cliente').focus();
+    window.scrollTo({top:0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  }
+  $('#cancel').addEventListener('click', resetForm);
+
+  $('#save').addEventListener('click', async () => {
+    const cliente = $('#cliente').value.trim();
+    const nunca = $('#nunca').checked;
+    const ultima = $('#ultima').value;
+    if (!cliente){ showErr('Informe o cliente.'); $('#cliente').focus(); return; }
+    if (!nunca && !ultima){ showErr('Informe a data da última comunicação ou marque “Nunca comunicou”.'); return; }
+    if (!nunca && parseISO(ultima) > today()){ showErr('A data da última comunicação não pode ser futura.'); return; }
+    showErr('');
+    const data = {cliente, plataforma: plat, nunca, ultima: nunca ? '' : ultima, obs: $('#obs').value.trim(), atualizadoEm: new Date().toISOString()};
+    $('#save').disabled = true;
+    const ok = await persist(data, editingId);
+    $('#save').disabled = false;
+    if (ok){ toast(editingId ? 'Alterações salvas' : 'Registro adicionado'); resetForm(); $('#cliente').focus(); }
+  });
+  $('#cliente').addEventListener('keydown', e => { if (e.key === 'Enter') $('#save').click(); });
+  $('#obs').addEventListener('keydown', e => { if (e.key === 'Enter') $('#save').click(); });
+
+  /* ---------- lista ---------- */
+  function render(){
+    const counts = {Todas: items.length}; PLATS.forEach(p => counts[p] = items.filter(i => i.plataforma === p).length);
+    $('#tabs').innerHTML = ['Todas', ...PLATS].map(p => `<button class="tab" role="tab" aria-selected="${p===filter}" data-v="${p}">${p}<span class="n">${counts[p]}</span></button>`).join('');
+    const list = sortItems(filter === 'Todas' ? items : items.filter(i => i.plataforma === filter));
+    if (!list.length){
+      $('#rows').innerHTML = `<tr><td colspan="5" class="empty">${items.length ? 'Nenhum registro nesta plataforma.' : 'Nenhuma IA registrada. Preencha o formulário acima para começar.'}</td></tr>`;
+      return;
+    }
+    $('#rows').innerHTML = list.map(it => {
+      const s = situacao(it);
+      return `<tr data-id="${esc(it.id)}" class="${it.id===editingId?'editing':''}" tabindex="0" title="Clique para editar">
+        <td><div class="cli">${esc(it.cliente)}</div>${it.obs ? `<div class="obs-t">${esc(it.obs)}</div>` : ''}</td>
+        <td>${esc(it.plataforma)}</td>
+        <td>${it.nunca ? '—' : fmt(it.ultima)}</td>
+        <td><span class="pill ${s.cls}">${s.txt}</span></td>
+        <td style="text-align:right">${readOnly ? '' : `<button class="btn ghost del" data-del="${esc(it.id)}" aria-label="Excluir ${esc(it.cliente)}">Excluir</button>`}</td>
+      </tr>`;
+    }).join('');
+  }
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; filter = b.dataset.v; render(); });
+  $('#rows').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del){ e.stopPropagation(); const it = items.find(i => i.id === del.dataset.del); if (it && confirm(`Excluir o registro de ${it.cliente}?`)){ if (editingId === it.id) resetForm(); remove(it.id); } return; }
+    const tr = e.target.closest('tr[data-id]'); if (!tr || readOnly) return;
+    const it = items.find(i => i.id === tr.dataset.id); if (it) loadForm(it);
+  });
+  $('#rows').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('tr[data-id]')) e.target.click(); });
+
+  /* ---------- relatório ---------- */
+  function repData(p){
+    const list = sortItems(items.filter(i => i.plataforma === p));
+    const nunca = list.filter(i => i.nunca);
+    const sem = list.filter(i => !i.nunca);
+    const d = sem.map(i => daysSince(i.ultima));
+    return {
+      list, nunca, sem,
+      mais30: d.filter(x => x > 30).length,
+      ate30: d.filter(x => x > 7 && x <= 30).length,
+      ate7: d.filter(x => x <= 7).length,
+      maior: d.length ? Math.max(...d) : 0,
+      media: d.length ? Math.round(d.reduce((a,b)=>a+b,0) / d.length) : 0,
+      emissao: new Date().toLocaleDateString('pt-BR')
+    };
+  }
+  const texto = (p, r) => [
+    `Prezados, a equipe de Backoffice da Servis Tecnologia em Segurança realizou levantamento das câmeras com inteligência artificial integradas à plataforma ${p} e identificou ${r.list.length} ${r.list.length === 1 ? 'cliente' : 'clientes'} sem funcionamento adequado do serviço.`,
+    r.nunca.length ? `Desse total, ${r.nunca.length} ${r.nunca.length === 1 ? 'cliente nunca registrou' : 'clientes nunca registraram'} comunicação desde a ativação, e ${r.sem.length} ${r.sem.length === 1 ? 'está' : 'estão'} sem comunicação a partir da data indicada.` : `Todos estão sem comunicação a partir da data indicada para cada cliente.`,
+    `Solicitamos a análise e a regularização dos itens relacionados abaixo, com retorno sobre a causa identificada e o prazo de normalização de cada cliente.`
+  ];
+
+  function renderRep(){
+    const p = repPlat, r = repData(p);
+    if (!r.list.length){
+      $('#rep').innerHTML = `<p class="empty">Nenhum cliente registrado para ${p}. Escolha outra plataforma ou adicione registros.</p>`;
+      $('#dlPdf').disabled = $('#dlCsv').disabled = true; return;
+    }
+    $('#dlPdf').disabled = $('#dlCsv').disabled = false;
+    const rowsHtml = arr => arr.map(i => `<tr><td>${esc(i.cliente)}</td><td>${i.nunca ? '—' : fmt(i.ultima)}</td><td>${i.nunca ? '—' : daysSince(i.ultima)}</td><td>${esc(i.obs || '')}</td></tr>`).join('');
+    const tbl = arr => `<div class="tablewrap"><table><thead><tr><th>Cliente</th><th>Última comunicação</th><th>Dias sem comunicação</th><th>Observação</th></tr></thead><tbody>${rowsHtml(arr)}</tbody></table></div>`;
+    $('#rep').innerHTML = `
+      <h3>IAs sem funcionamento – ${esc(p)}</h3>
+      <div class="meta">Servis Tecnologia em Segurança · Emitido em ${r.emissao}</div>
+      ${texto(p, r).map(t => `<p>${esc(t)}</p>`).join('')}
+      <div class="stats">
+        <div><b>${r.list.length}</b><span>Clientes afetados</span></div>
+        <div><b>${r.nunca.length}</b><span>Nunca comunicaram</span></div>
+        <div><b>${r.mais30}</b><span>Mais de 30 dias sem comunicação</span></div>
+        <div><b>${r.sem.length ? r.maior : '—'}</b><span>Maior período (dias)</span></div>
+      </div>
+      ${r.nunca.length ? `<h4>Nunca comunicaram (${r.nunca.length})</h4>${tbl(r.nunca)}` : ''}
+      ${r.sem.length ? `<h4>Sem comunicação (${r.sem.length})</h4>${tbl(r.sem)}
+      <p style="margin-top:12px;color:var(--muted);font-size:13px">Distribuição: ${r.mais30} acima de 30 dias, ${r.ate30} entre 8 e 30 dias, ${r.ate7} até 7 dias. Média de ${r.media} dias sem comunicação.</p>` : ''}`;
+  }
+  $('#openRep').addEventListener('click', () => {
+    const withData = PLATS.find(p => items.some(i => i.plataforma === p));
+    repPlat = (filter !== 'Todas' ? filter : withData) || 'Segware';
+    setSeg($('#repPlat'), repPlat); renderRep(); $('#dlg').showModal();
+  });
+  $('#repPlat').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; repPlat = b.dataset.v; setSeg($('#repPlat'), repPlat); renderRep(); });
+  $('#closeRep').addEventListener('click', () => $('#dlg').close());
+
+  function save(filename, data, mime){
+    const url = URL.createObjectURL(new Blob([data], {type: mime}));
+    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  const stamp = () => new Date().toISOString().slice(0,10);
+
+  $('#dlCsv').addEventListener('click', () => {
+    const r = repData(repPlat);
+    const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    const lines = [['Cliente','Plataforma','Situação','Última comunicação','Dias sem comunicação','Observação'].map(q).join(';')]
+      .concat(r.list.map(i => [i.cliente, i.plataforma, i.nunca ? 'Nunca comunicou' : 'Sem comunicação', i.nunca ? '' : fmt(i.ultima), i.nunca ? '' : daysSince(i.ultima), i.obs || ''].map(q).join(';')));
+    save(`IAs_sem_funcionamento_${repPlat}_${stamp()}.csv`, '\ufeff' + lines.join('\r\n'), 'text/csv');
+  });
+
+  $('#dlPdf').addEventListener('click', () => {
+    if (!window.jspdf){ toast('Gerador de PDF não carregou. Recarregue a página.'); return; }
+    const p = repPlat, r = repData(p);
+    const doc = new jspdf.jsPDF({unit:'mm', format:'a4'});
+    const W = 210, M = 18, CW = W - 2*M; let y = 0;
+    const green = [11,107,58], ink = [22,36,29], muted = [94,110,102], line = [220,227,223];
+    const header = () => {
+      doc.setFillColor(...green); doc.rect(0,0,W,4,'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted);
+      doc.text('Servis Tecnologia em Segurança', M, 296 - 6);
+      doc.text(`Página ${doc.getNumberOfPages()}`, W - M, 296 - 6, {align:'right'});
+    };
+    const newPage = () => { doc.addPage(); header(); y = 18; };
+    const need = h => { if (y + h > 280) newPage(); };
+    header(); y = 20;
+    doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...ink);
+    doc.text(`IAs sem funcionamento – ${p}`, M, y); y += 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...muted);
+    doc.text(`Servis Tecnologia em Segurança · Emitido em ${r.emissao}`, M, y); y += 10;
+    doc.setFontSize(10.5); doc.setTextColor(...ink);
+    texto(p, r).forEach(t => { const ls = doc.splitTextToSize(t, CW); need(ls.length*5); doc.text(ls, M, y); y += ls.length*5 + 3; });
+    y += 2;
+    const stats = [[r.list.length,'Clientes afetados'],[r.nunca.length,'Nunca comunicaram'],[r.mais30,'Mais de 30 dias sem com.'],[r.sem.length ? r.maior : '—','Maior período (dias)']];
+    const sw = CW/4; doc.setDrawColor(...line);
+    stats.forEach((s,i) => {
+      const x = M + i*sw; doc.rect(x, y, sw, 17);
+      doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...ink); doc.text(String(s[0]), x+4, y+8);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...muted); doc.text(s[1], x+4, y+13.5);
+    });
+    y += 26;
+    const cols = [{h:'Cliente',w:68},{h:'Última com.',w:24},{h:'Dias',w:14},{h:'Observação',w:CW-106}];
+    const thead = () => {
+      doc.setFillColor(...green); doc.rect(M, y, CW, 7, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(255,255,255);
+      let x = M; cols.forEach(c => { doc.text(c.h, x+2, y+4.8); x += c.w; }); y += 7;
+    };
+    const table = (title, arr) => {
+      need(20);
+      doc.setFont('helvetica','bold'); doc.setFontSize(11.5); doc.setTextColor(...ink);
+      doc.text(`${title} (${arr.length})`, M, y); y += 4; thead();
+      arr.forEach((it, idx) => {
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+        const cells = [it.cliente, it.nunca ? '—' : fmt(it.ultima), it.nunca ? '—' : String(daysSince(it.ultima)), it.obs || ''];
+        const wrapped = cells.map((c,i) => doc.splitTextToSize(c, cols[i].w - 4));
+        const h = Math.max(...wrapped.map(w => w.length)) * 4 + 3;
+        if (y + h > 280){ newPage(); thead(); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); }
+        if (idx % 2) { doc.setFillColor(243,246,244); doc.rect(M, y, CW, h, 'F'); }
+        doc.setTextColor(...ink);
+        let x = M; wrapped.forEach((w,i) => { doc.text(w, x+2, y+4.2); x += cols[i].w; });
+        doc.setDrawColor(...line); doc.line(M, y+h, M+CW, y+h); y += h;
+      });
+      y += 8;
+    };
+    if (r.nunca.length) table('Nunca comunicaram', r.nunca);
+    if (r.sem.length){
+      table('Sem comunicação', r.sem);
+      const t = doc.splitTextToSize(`Distribuição: ${r.mais30} acima de 30 dias, ${r.ate30} entre 8 e 30 dias, ${r.ate7} até 7 dias. Média de ${r.media} dias sem comunicação.`, CW);
+      need(t.length*5); doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...muted); doc.text(t, M, y); y += t.length*5 + 6;
+    }
+    need(20);
+    doc.setFontSize(10); doc.setTextColor(...ink);
+    doc.text('Atenciosamente,', M, y); y += 6;
+    doc.setFont('helvetica','bold'); doc.text('Backoffice – Servis Tecnologia em Segurança', M, y);
+    save(`IAs_sem_funcionamento_${p}_${stamp()}.pdf`, doc.output('arraybuffer'), 'application/pdf');
+  });
+
+  initRuntime();
+})();
+</script>
+</body>
+</html>
