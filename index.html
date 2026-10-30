@@ -118,6 +118,9 @@ dialog::backdrop{background:rgba(10,20,15,.5)}
 .login .sub{margin-bottom:10px}
 .login input{margin-bottom:8px}
 .login .btn{margin-top:4px}
+.link{border:0;background:none;color:var(--brand);font-weight:600;font-size:13px;padding:8px 0 0;text-align:center;text-decoration:underline;text-underline-offset:3px}
+.ok{color:var(--brand);font-size:13px;margin:0}
+.ok:empty,.err:empty{display:none}
 input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
@@ -154,6 +157,29 @@ input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--b
     <input type="password" id="lpass" autocomplete="current-password">
     <p class="err" id="lerr" role="alert"></p>
     <button type="button" class="btn primary" id="loginBtn">Entrar</button>
+    <button type="button" class="link" id="goReset">Esqueceu a senha ou primeiro acesso?</button>
+  </section>
+
+  <section id="reset" class="login" hidden aria-label="Recuperar ou criar acesso">
+    <h2>Recuperar ou criar acesso</h2>
+    <p class="sub">Informe seu e-mail. Enviaremos um link: se você já tem acesso, poderá redefinir a senha; se ainda não tem, o acesso será criado com este e-mail.</p>
+    <label class="flabel" for="remail">E-mail</label>
+    <input type="text" id="remail" autocomplete="username" inputmode="email">
+    <p class="err" id="rerr" role="alert"></p>
+    <p class="ok" id="rok" role="status"></p>
+    <button type="button" class="btn primary" id="resetBtn">Enviar link de acesso</button>
+    <button type="button" class="link" id="backLogin">Voltar para o login</button>
+  </section>
+
+  <section id="setpass" class="login" hidden aria-label="Definir senha">
+    <h2>Definir senha</h2>
+    <p class="sub" id="spSub">Crie sua senha de acesso.</p>
+    <label class="flabel" for="np1">Nova senha</label>
+    <input type="password" id="np1" autocomplete="new-password">
+    <label class="flabel" for="np2">Confirme a nova senha</label>
+    <input type="password" id="np2" autocomplete="new-password">
+    <p class="err" id="sperr" role="alert"></p>
+    <button type="button" class="btn primary" id="setPassBtn">Salvar senha e entrar</button>
   </section>
 
   <div id="app" hidden>
@@ -246,6 +272,11 @@ input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--b
   const sortItems = arr => arr.slice().sort((a,b) => situacao(b).ord - situacao(a).ord || a.cliente.localeCompare(b.cliente,'pt-BR'));
 
   /* ---------- persistência (Supabase) ---------- */
+  // Detecta retorno de link de e-mail (magic link / cadastro / recuperação) antes do supabase-js limpar a URL
+  const linkHash = new URLSearchParams(location.hash.slice(1));
+  const linkType = linkHash.get('type');
+  let needPassword = !!linkHash.get('access_token') && ['magiclink','signup','recovery','invite'].includes(linkType);
+  const linkError = linkHash.get('error_description');
   const cfg = window.SERVIS_CONFIG || {};
   const sb = (window.supabase && cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes('SEU-PROJETO'))
     ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
@@ -264,20 +295,70 @@ input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--b
     if (!sb){ $('#sync').textContent = 'Configure SUPABASE_URL e SUPABASE_ANON_KEY no arquivo config.js'; $('#logout').hidden = true; return; }
     const {data} = await sb.auth.getSession();
     session = data.session;
-    sb.auth.onAuthStateChange((_e, s) => { session = s; s ? start() : showLogin(true); });
-    session ? start() : showLogin(true);
+    sb.auth.onAuthStateChange((e, s) => {
+      session = s;
+      if (e === 'PASSWORD_RECOVERY') needPassword = true;
+      if (!s) { showLogin(true); return; }
+      needPassword ? showSetPass() : start();
+    });
+    if (linkError){ showLogin(true); $('#lerr').textContent = 'Link inválido ou expirado. Solicite um novo em "Esqueceu a senha".'; history.replaceState(null, '', location.pathname); return; }
+    if (!session) { showLogin(true); return; }
+    needPassword ? showSetPass() : start();
+  }
+  const screens = ['#login','#reset','#setpass','#app'];
+  function show(id){ screens.forEach(s => $(s).hidden = (s !== id)); }
+  function showSetPass(){
+    show('#setpass'); $('#logout').hidden = true;
+    $('#spSub').textContent = 'Acesso confirmado para ' + (session?.user?.email || '') + '. Defina sua senha para os próximos logins.';
+    $('#sync').textContent = '';
+    $('#np1').focus();
   }
   function start(){
-    $('#login').hidden = true; $('#app').hidden = false;
+    show('#app'); $('#logout').hidden = false;
     load();
     if (!channel){
       channel = sb.channel('ias').on('postgres_changes', {event:'*', schema:'public', table:'ias_levantamento'}, () => load()).subscribe();
     }
   }
   function showLogin(on){
-    $('#app').hidden = on; $('#login').hidden = !on;
+    show(on ? '#login' : '#app');
+    if (on){ $('#logout').hidden = true; $('#sync').textContent = ''; }
     if (channel){ sb.removeChannel(channel); channel = null; }
   }
+  const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  $('#goReset').addEventListener('click', () => { show('#reset'); $('#remail').value = $('#lemail').value.trim(); $('#rerr').textContent = ''; $('#rok').textContent = ''; $('#remail').focus(); });
+  $('#backLogin').addEventListener('click', () => { show('#login'); $('#lemail').focus(); });
+  $('#resetBtn').addEventListener('click', async () => {
+    const email = $('#remail').value.trim().toLowerCase();
+    $('#rerr').textContent = ''; $('#rok').textContent = '';
+    if (!validEmail(email)){ $('#rerr').textContent = 'Informe um e-mail válido.'; return; }
+    $('#resetBtn').disabled = true;
+    // Envia link de acesso: cria o usuário se não existir; se existir, permite redefinir a senha
+    const {error} = await sb.auth.signInWithOtp({email, options:{shouldCreateUser:true, emailRedirectTo: location.origin + location.pathname}});
+    $('#resetBtn').disabled = false;
+    if (error){
+      $('#rerr').textContent = /rate|seconds|limit/i.test(error.message)
+        ? 'Muitas solicitações. Aguarde alguns minutos e tente novamente.'
+        : 'Não foi possível enviar o link: ' + error.message;
+      return;
+    }
+    $('#rok').textContent = 'Link enviado para ' + email + '. Abra o e-mail (verifique também o spam) e clique no link para definir sua senha.';
+  });
+  $('#remail').addEventListener('keydown', e => { if (e.key === 'Enter') $('#resetBtn').click(); });
+  $('#setPassBtn').addEventListener('click', async () => {
+    const p1 = $('#np1').value, p2 = $('#np2').value;
+    $('#sperr').textContent = '';
+    if (p1.length < 8){ $('#sperr').textContent = 'A senha deve ter pelo menos 8 caracteres.'; return; }
+    if (p1 !== p2){ $('#sperr').textContent = 'As senhas não conferem.'; return; }
+    $('#setPassBtn').disabled = true;
+    const {error} = await sb.auth.updateUser({password: p1});
+    $('#setPassBtn').disabled = false;
+    if (error){ $('#sperr').textContent = 'Não foi possível salvar a senha: ' + error.message; return; }
+    needPassword = false; $('#np1').value = $('#np2').value = '';
+    history.replaceState(null, '', location.pathname);
+    toast('Senha definida'); start();
+  });
+  $('#np2').addEventListener('keydown', e => { if (e.key === 'Enter') $('#setPassBtn').click(); });
   $('#loginBtn').addEventListener('click', async () => {
     const email = $('#lemail').value.trim(), password = $('#lpass').value;
     $('#lerr').textContent = '';
